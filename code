@@ -1,0 +1,101 @@
+import requests
+import uuid
+import json
+
+# Sua chave de assinatura do Azure AI Translator.
+# Ex: "1234567890abcdef1234567890abcdef"
+key = "SUA_CHAVE_DO_AZURE_AQUI" 
+
+# O endpoint do seu recurso Translator.
+# Use 'api.cognitive.microsofttranslator.com' para o recurso global.
+endpoint = "https://api.cognitive.microsofttranslator.com"
+
+# Região/Localização do seu recurso. Necessário apenas se você não usar o endpoint global.
+# Ex: 'brazilsouth' ou 'eastus'
+location = "SUA_REGIAO_AQUI" 
+
+# Idioma de origem (Opcional, a API pode detectar). 'pt' para Português.
+from_lang = "pt"
+
+# Idiomas de destino. Você pode adicionar vários códigos de idioma.
+to_lang = ["en", "es"] # Inglês e Espanhol
+
+# Texto a ser traduzido.
+text_to_translate = "Este é um exemplo de tradução usando a API REST do Azure AI Translator."
+
+# ====================================================================
+# ESTRUTURA DA REQUISIÇÃO
+# ====================================================================
+
+# 1. URL da API
+path = '/translate'
+constructed_url = endpoint + path
+
+# 2. Parâmetros da Requisição
+params = {
+    'api-version': '3.0',
+    'from': from_lang,
+    'to': to_lang
+}
+
+# 3. Corpo da Requisição (O texto a ser traduzido)
+# A API espera uma lista de objetos JSON com a chave 'Text'.
+body = [{
+    'text': text_to_translate
+}]
+
+# 4. Cabeçalhos da Requisição (Incluindo a chave de autenticação)
+headers = {
+    # Um ID de requisição único (UUID) é uma boa prática.
+    'Ocp-Apim-Subscription-Key': key,
+    'Content-type': 'application/json',
+    'X-ClientTraceId': str(uuid.uuid4())
+}
+
+# Adicione a região se o recurso não for global
+if location:
+    headers['Ocp-Apim-Subscription-Region'] = location
+
+def translate_text():
+    try:
+        request = requests.post(
+            constructed_url,
+            params=params,
+            headers=headers,
+            json=body
+        )
+        
+        # Levanta um erro HTTP para códigos de status ruins (4xx ou 5xx)
+        request.raise_for_status()
+
+        # A resposta é uma lista JSON
+        response_json = request.json()
+        
+        print("--- Tradução Concluída ---")
+        print(f"Texto Original ({from_lang}): {text_to_translate}")
+        print("-" * 30)
+
+        # Processar a resposta (que é uma lista, por isso [0])
+        if response_json and response_json[0].get('translations'):
+            
+            for translation in response_json[0]['translations']:
+                lang = translation.get('to')
+                translated_text = translation.get('text')
+                print(f"Tradução ({lang}): {translated_text}")
+        else:
+            print("Resposta da API inválida ou sem traduções.")
+
+    except requests.exceptions.HTTPError as errh:
+        print(f"Erro HTTP: {errh}")
+        # Tenta imprimir a mensagem de erro da API se disponível
+        try:
+            print(f"Detalhes do Erro da API: {request.text}")
+        except Exception:
+            pass
+    except requests.exceptions.RequestException as err:
+        print(f"Erro de Requisição: {err}")
+    except Exception as e:
+        print(f"Um erro inesperado ocorreu: {e}")
+
+if __name__ == "__main__":
+    translate_text()
